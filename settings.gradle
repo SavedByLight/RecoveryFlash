@@ -1,0 +1,2 @@
+rootProject.name = "RecoveryFlash"
+include ':app'
