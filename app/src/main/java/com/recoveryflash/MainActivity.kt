@@ -208,6 +208,7 @@ class MainActivity : AppCompatActivity() {
                                 Toast.makeText(this, "Backup saved: ${backupFile.name}", Toast.LENGTH_LONG).show()
                             is FlashUtils.FlashResult.Error ->
                                 showError("Backup Failed", result.message)
+                            else -> { /* unreachable — FlashResult only has these two subtypes */ }
                         }
                     }
                 )
@@ -251,6 +252,7 @@ class MainActivity : AppCompatActivity() {
                                 Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
                             is FlashUtils.FlashResult.Error ->
                                 showError("Flash Failed", result.message)
+                            else -> { /* unreachable — FlashResult only has these two subtypes */ }
                         }
                     }
                 )
