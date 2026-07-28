@@ -10,6 +10,36 @@
         android:padding="24dp">
 
         <TextView
+            android:id="@+id/appTitleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="RecoveryFlash"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/appCreditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Developed by SavedByLight"
+            android:textSize="13sp"
+            android:alpha="0.6"
+            android:gravity="center"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/appVersionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="v1.1"
+            android:textSize="12sp"
+            android:alpha="0.5"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <TextView
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -78,6 +108,13 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:text="Reboot to Bootloader" />
+
+        <Button
+            android:id="@+id/btnRebootDownload"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Reboot to Download Mode (Samsung)" />
 
         <Button
             android:id="@+id/btnDeviceInfo"

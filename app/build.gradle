@@ -12,12 +12,29 @@ android {
         minSdk 24
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
+    }
+
+    signingConfigs {
+        release {
+            def ksPath = file("release.keystore")
+            if (ksPath.exists()) {
+                storeFile ksPath
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            // Only apply the signing config if a keystore is actually present (CI release builds).
+            // Local `assembleRelease` without a keystore will just produce an unsigned APK.
+            if (file("release.keystore").exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

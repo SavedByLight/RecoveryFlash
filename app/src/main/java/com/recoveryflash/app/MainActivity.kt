@@ -63,6 +63,17 @@ class MainActivity : AppCompatActivity() {
             requireRoot { confirmReboot("Reboot to Bootloader?", "reboot bootloader") }
         }
 
+        findViewById<Button>(R.id.btnRebootDownload).setOnClickListener {
+            requireRoot { confirmDownloadMode() }
+        }
+
+        // Download Mode is Samsung-specific (Odin mode) — hide it entirely on other manufacturers
+        // rather than showing a button that won't do anything.
+        val isSamsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
+        if (!isSamsung) {
+            findViewById<Button>(R.id.btnRebootDownload).visibility = android.view.View.GONE
+        }
+
         findViewById<Button>(R.id.btnDeviceInfo).setOnClickListener {
             showDeviceInfo()
         }
@@ -163,6 +174,23 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
                     is FlashUtils.FlashResult.Error ->
                         showError("Flash Failed", result.message)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDownloadMode() {
+        AlertDialog.Builder(this)
+            .setTitle("Reboot to Download Mode?")
+            .setMessage(
+                "This reboots into Samsung Download Mode (Odin mode), used for flashing with Odin " +
+                "or Heimdall."
+            )
+            .setPositiveButton("Yes") { _, _ ->
+                val (success, output) = RootUtils.runAsRoot("reboot download")
+                if (!success) {
+                    showError("Reboot Failed", output)
                 }
             }
             .setNegativeButton("Cancel", null)
