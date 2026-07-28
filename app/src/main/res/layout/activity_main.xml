@@ -33,7 +33,7 @@
             android:id="@+id/appVersionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="v1.1.2"
+            android:text="v1.1"
             android:textSize="12sp"
             android:alpha="0.5"
             android:gravity="center"
@@ -121,6 +121,63 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Show Device Info" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33000000"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Progress Log"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnCopyLog"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="Copy" />
+
+            <Button
+                android:id="@+id/btnClearLog"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginStart="4dp"
+                android:text="Clear" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/logText"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:background="#1A1A1A"
+            android:textColor="#66FF66"
+            android:typeface="monospace"
+            android:textSize="11sp"
+            android:padding="8dp"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false"
+            android:text="No activity yet." />
 
     </LinearLayout>
 </ScrollView>

@@ -1,9 +1,13 @@
 package com.recoveryflash.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.text.method.ScrollingMovementMethod
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
@@ -20,9 +24,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var selectedFileText: TextView
     private lateinit var partitionSpinner: Spinner
+    private lateinit var logText: TextView
 
     private var selectedImagePath: String? = null
     private var rooted: Boolean = false
+    private var operationInProgress: Boolean = false
 
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -37,8 +43,21 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         selectedFileText = findViewById(R.id.selectedFileText)
         partitionSpinner = findViewById(R.id.partitionSpinner)
+        logText = findViewById(R.id.logText)
+        logText.movementMethod = ScrollingMovementMethod()
+
+        findViewById<Button>(R.id.btnCopyLog).setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("RecoveryFlash log", AppLog.currentText()))
+            Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.btnClearLog).setOnClickListener {
+            AppLog.clear()
+        }
 
         rooted = RootUtils.isRooted()
+        AppLog.log(if (rooted) "Root access granted" else "Root access NOT detected — flashing disabled")
         statusText.text = if (rooted) "Root access: granted" else "Root access: NOT detected — flashing disabled"
 
         setupPartitionSpinner()
@@ -79,12 +98,59 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppLog.setListener { text ->
+            logText.text = text.ifEmpty { "No activity yet." }
+            // Auto-scroll to the bottom so the latest line is always visible.
+            val layout = logText.layout
+            if (layout != null) {
+                val scrollAmount = layout.getLineTop(logText.lineCount) - logText.height
+                logText.scrollTo(0, if (scrollAmount > 0) scrollAmount else 0)
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AppLog.setListener(null)
+    }
+
     private fun requireRoot(action: () -> Unit) {
         if (!rooted) {
             Toast.makeText(this, "Root access is required for this action", Toast.LENGTH_LONG).show()
             return
         }
         action()
+    }
+
+    /**
+     * Runs [work] (e.g. a backup/flash dd call) on a background thread and delivers the
+     * result back on the main thread via [onResult]. This is what makes the progress log
+     * actually useful: dd on a multi-GB image can take a while, and running it directly on
+     * the main thread (as before) would freeze the UI — including the log view itself —
+     * until the whole command finished, and risk the OS killing the app with an ANR.
+     */
+    private fun <T> runOperation(work: () -> T, onResult: (T) -> Unit) {
+        if (operationInProgress) {
+            Toast.makeText(this, "Another operation is already running", Toast.LENGTH_SHORT).show()
+            return
+        }
+        operationInProgress = true
+        setActionButtonsEnabled(false)
+        Thread {
+            val result = work()
+            runOnUiThread {
+                operationInProgress = false
+                setActionButtonsEnabled(true)
+                onResult(result)
+            }
+        }.start()
+    }
+
+    private fun setActionButtonsEnabled(enabled: Boolean) {
+        findViewById<Button>(R.id.btnBackupFirst).isEnabled = enabled
+        findViewById<Button>(R.id.btnFlash).isEnabled = enabled
     }
 
     private fun setupPartitionSpinner() {
@@ -98,6 +164,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             commonTargets
         }
+        AppLog.log(
+            if (discovered.isNotEmpty()) "Discovered ${discovered.size} partitions on device"
+            else "Partition discovery returned nothing — falling back to common names (is root granted?)"
+        )
         partitionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, options)
 
         // Pre-select "recovery" if present, since that's the most common use case for this app.
@@ -117,6 +187,7 @@ class MainActivity : AppCompatActivity() {
         selectedImagePath = destFile.absolutePath
         val sizeMb = destFile.length() / 1024 / 1024
         selectedFileText.text = "Selected: ${destFile.length()} bytes (~${sizeMb} MB)"
+        AppLog.log("Image selected: ${destFile.length()} bytes (~${sizeMb} MB)")
     }
 
     private fun confirmBackup() {
@@ -129,13 +200,17 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Backup Partition")
             .setMessage("Back up the current '$partition' partition to:\n${backupFile.absolutePath}")
             .setPositiveButton("Backup") { _, _ ->
-                val result = FlashUtils.backupPartition(partition, backupFile.absolutePath)
-                when (result) {
-                    is FlashUtils.FlashResult.Success ->
-                        Toast.makeText(this, "Backup saved: ${backupFile.name}", Toast.LENGTH_LONG).show()
-                    is FlashUtils.FlashResult.Error ->
-                        showError("Backup Failed", result.message)
-                }
+                runOperation(
+                    work = { FlashUtils.backupPartition(partition, backupFile.absolutePath) },
+                    onResult = { result ->
+                        when (result) {
+                            is FlashUtils.FlashResult.Success ->
+                                Toast.makeText(this, "Backup saved: ${backupFile.name}", Toast.LENGTH_LONG).show()
+                            is FlashUtils.FlashResult.Error ->
+                                showError("Backup Failed", result.message)
+                        }
+                    }
+                )
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -168,13 +243,17 @@ class MainActivity : AppCompatActivity() {
                 "Flashing the wrong image can make the device unbootable." + sizeWarning
             )
             .setPositiveButton("Flash") { _, _ ->
-                val result = FlashUtils.flashImage(path, partition)
-                when (result) {
-                    is FlashUtils.FlashResult.Success ->
-                        Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
-                    is FlashUtils.FlashResult.Error ->
-                        showError("Flash Failed", result.message)
-                }
+                runOperation(
+                    work = { FlashUtils.flashImage(path, partition) },
+                    onResult = { result ->
+                        when (result) {
+                            is FlashUtils.FlashResult.Success ->
+                                Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
+                            is FlashUtils.FlashResult.Error ->
+                                showError("Flash Failed", result.message)
+                        }
+                    }
+                )
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -188,8 +267,10 @@ class MainActivity : AppCompatActivity() {
                 "or Heimdall."
             )
             .setPositiveButton("Yes") { _, _ ->
+                AppLog.log("Running: reboot download")
                 val (success, output) = RootUtils.runAsRoot("reboot download")
                 if (!success) {
+                    AppLog.log("ERROR: reboot download failed — $output")
                     showError("Reboot Failed", output)
                 }
             }
@@ -202,8 +283,10 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Confirm")
             .setMessage(message)
             .setPositiveButton("Yes") { _, _ ->
+                AppLog.log("Running: $command")
                 val (success, output) = RootUtils.runAsRoot(command)
                 if (!success) {
+                    AppLog.log("ERROR: $command failed — $output")
                     showError("Reboot Failed", output)
                 }
             }
@@ -212,6 +295,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showDeviceInfo() {
+        AppLog.log("Device info requested")
         val info = """
             Model: ${Build.MODEL}
             Manufacturer: ${Build.MANUFACTURER}
