@@ -5,6 +5,21 @@ object PartitionUtils {
     private const val BY_NAME_PATH = "/dev/block/by-name/"
 
     /**
+     * The only partitions this app is allowed to flash/back up. Anything else discovered
+     * on the device (data, system, cache, persist, etc.) is intentionally excluded from
+     * every user-facing action — flashing the wrong partition on Samsung/Qualcomm devices
+     * can hard-brick, so scope is kept to the recovery-relevant set only.
+     */
+    val FLASHABLE_BASE_PARTITIONS = listOf("recovery", "boot", "vendor_boot")
+
+    private val flashableRegexes = FLASHABLE_BASE_PARTITIONS.map { base ->
+        Regex("^${Regex.escape(base)}(_[ab])?$")
+    }
+
+    /** True if [name] (e.g. "vendor_boot_a") is one of the app's allowed flash/backup targets. */
+    fun isFlashableTarget(name: String): Boolean = flashableRegexes.any { it.matches(name) }
+
+    /**
      * Lists partition names actually present on this device.
      * Must go through root: /dev/block/by-name is root:root 0660 (plus sepolicy) on
      * almost all Samsung/AOSP devices, so a plain java.io.File check from the app's

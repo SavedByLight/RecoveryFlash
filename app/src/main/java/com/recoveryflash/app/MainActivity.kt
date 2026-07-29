@@ -154,19 +154,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupPartitionSpinner() {
-        // Discover partitions actually present on this device instead of hardcoding names,
-        // since naming varies a lot between manufacturers (boot / boot_a / vendor_boot / etc).
+        // This app only ever flashes/backs up recovery, boot, and vendor_boot (a/b) —
+        // never the full discovered partition list, since flashing the wrong partition
+        // (data, system, persist, etc.) can hard-brick the device.
         val discovered = PartitionUtils.listAvailablePartitions()
-        val commonTargets = listOf("recovery", "boot", "vendor_boot")
-        val options = if (discovered.isNotEmpty()) {
-            // Prefer showing full discovered list so the user picks exactly what's real on their device.
-            discovered
+        val matched = discovered.filter { PartitionUtils.isFlashableTarget(it) }
+        val options = if (matched.isNotEmpty()) {
+            matched
         } else {
-            commonTargets
+            // Root/discovery unavailable — fall back to bare base names so the UI still
+            // has something to show; PartitionUtils.resolvePartitionName() will attempt
+            // slot-suffix resolution at flash/backup time regardless.
+            PartitionUtils.FLASHABLE_BASE_PARTITIONS
         }
         AppLog.log(
-            if (discovered.isNotEmpty()) "Discovered ${discovered.size} partitions on device"
-            else "Partition discovery returned nothing — falling back to common names (is root granted?)"
+            if (matched.isNotEmpty()) "Found ${matched.size} flashable partitions: ${matched.joinToString()}"
+            else "No matching recovery/boot/vendor_boot partitions discovered — falling back to base names (is root granted?)"
         )
         partitionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, options)
 
@@ -192,6 +195,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun confirmBackup() {
         val partition = partitionSpinner.selectedItem as? String ?: return
+        if (!PartitionUtils.isFlashableTarget(partition)) {
+            AppLog.log("BLOCKED: '$partition' is not in the allowed partition list (${PartitionUtils.FLASHABLE_BASE_PARTITIONS.joinToString()})")
+            Toast.makeText(this, "This app can only back up recovery, boot, or vendor_boot", Toast.LENGTH_LONG).show()
+            return
+        }
         val backupDir = File(getExternalFilesDir(null), "backups")
         backupDir.mkdirs()
         val backupFile = File(backupDir, "${partition}_backup_${System.currentTimeMillis()}.img")
@@ -208,6 +216,7 @@ class MainActivity : AppCompatActivity() {
                                 Toast.makeText(this, "Backup saved: ${backupFile.name}", Toast.LENGTH_LONG).show()
                             is FlashUtils.FlashResult.Error ->
                                 showError("Backup Failed", result.message)
+                            else -> { /* unreachable — FlashResult only has these two subtypes */ }
                         }
                     }
                 )
@@ -223,6 +232,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val partition = partitionSpinner.selectedItem as? String ?: return
+        if (!PartitionUtils.isFlashableTarget(partition)) {
+            AppLog.log("BLOCKED: '$partition' is not in the allowed partition list (${PartitionUtils.FLASHABLE_BASE_PARTITIONS.joinToString()})")
+            Toast.makeText(this, "This app can only flash recovery, boot, or vendor_boot", Toast.LENGTH_LONG).show()
+            return
+        }
 
         // Sanity-check the image size against the partition size where possible, since flashing
         // something drastically the wrong size onto the wrong partition is a common brick cause.
@@ -251,6 +265,7 @@ class MainActivity : AppCompatActivity() {
                                 Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
                             is FlashUtils.FlashResult.Error ->
                                 showError("Flash Failed", result.message)
+                            else -> { /* unreachable — FlashResult only has these two subtypes */ }
                         }
                     }
                 )
