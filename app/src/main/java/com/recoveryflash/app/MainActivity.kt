@@ -74,27 +74,43 @@ class MainActivity : AppCompatActivity() {
             requireRoot { confirmFlash() }
         }
 
-        findViewById<Button>(R.id.btnRebootRecovery).setOnClickListener {
-            requireRoot { confirmReboot("Reboot to Recovery?", "reboot recovery") }
-        }
-
-        findViewById<Button>(R.id.btnRebootBootloader).setOnClickListener {
-            requireRoot { confirmReboot("Reboot to Bootloader?", "reboot bootloader") }
-        }
-
-        findViewById<Button>(R.id.btnRebootDownload).setOnClickListener {
-            requireRoot { confirmDownloadMode() }
-        }
-
-        // Download Mode is Samsung-specific (Odin mode) — hide it entirely on other manufacturers
-        // rather than showing a button that won't do anything.
-        val isSamsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
-        if (!isSamsung) {
-            findViewById<Button>(R.id.btnRebootDownload).visibility = android.view.View.GONE
-        }
+        setupRebootSpinner()
 
         findViewById<Button>(R.id.btnDeviceInfo).setOnClickListener {
             showDeviceInfo()
+        }
+    }
+
+    private data class RebootOption(val label: String, val command: String, val isDownloadMode: Boolean = false)
+
+    private fun setupRebootSpinner() {
+        val isSamsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
+        val options = mutableListOf(
+            RebootOption("Recovery", "reboot recovery"),
+            RebootOption("Bootloader", "reboot bootloader")
+        )
+        // Download Mode is Samsung-specific (Odin mode) — leave it out entirely on other
+        // manufacturers rather than offering an option that won't do anything.
+        if (isSamsung) {
+            options.add(RebootOption("Download Mode (Odin)", "reboot download", isDownloadMode = true))
+        }
+
+        val rebootSpinner = findViewById<Spinner>(R.id.rebootSpinner)
+        rebootSpinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            options.map { it.label }
+        )
+
+        findViewById<Button>(R.id.btnReboot).setOnClickListener {
+            val selected = options.getOrNull(rebootSpinner.selectedItemPosition) ?: return@setOnClickListener
+            requireRoot {
+                if (selected.isDownloadMode) {
+                    confirmDownloadMode()
+                } else {
+                    confirmReboot("Reboot to ${selected.label}?", selected.command)
+                }
+            }
         }
     }
 
