@@ -254,10 +254,29 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val resolvedName = PartitionUtils.resolvePartitionName(partition)
+
+        // Read the real GPT entry via the kernel's own parsed sysfs data, rather than trusting
+        // the /dev/block/by-name symlink text alone. If the kernel-reported PARTNAME doesn't
+        // match what we resolved, refuse to flash — a stale or duplicate symlink here is
+        // exactly the kind of thing that bricks a device silently.
+        val identity = PartitionUtils.getPartitionIdentity(resolvedName)
+        if (identity == null || identity.partName != resolvedName) {
+            AppLog.log("BLOCKED: GPT identity check failed for '$resolvedName' (kernel PARTNAME='${identity?.partName ?: "unreadable"}')")
+            showError(
+                "Partition Verification Failed",
+                "Could not verify the GPT entry for '$resolvedName' against its by-name symlink " +
+                "(kernel reports PARTNAME='${identity?.partName ?: "unreadable"}'). " +
+                "Refusing to flash — this usually means the symlink is stale, duplicated, or the " +
+                "partition table doesn't match what's expected on this device."
+            )
+            return
+        }
+
         // Sanity-check the image size against the partition size where possible, since flashing
         // something drastically the wrong size onto the wrong partition is a common brick cause.
         val imageSize = File(path).length()
-        val partSize = PartitionUtils.getPartitionSizeBytes(PartitionUtils.resolvePartitionName(partition))
+        val partSize = PartitionUtils.getPartitionSizeBytes(resolvedName)
         val sizeWarning = if (partSize != null && imageSize > partSize) {
             "\n\n⚠️ WARNING: the selected image (${imageSize} bytes) is LARGER than the target partition " +
                 "(${partSize} bytes). This will almost certainly fail or corrupt the partition."
@@ -265,20 +284,24 @@ class MainActivity : AppCompatActivity() {
             ""
         }
 
+        val guidInfo = "\n\nGPT entry: PARTNAME=${identity.partName}" +
+            (identity.partUuid?.let { "\nPARTUUID=$it" } ?: "") +
+            (identity.typeUuid?.let { "\nPARTTYPE=$it" } ?: "")
+
         AlertDialog.Builder(this)
             .setTitle("⚠️ Confirm Flash")
             .setMessage(
-                "This will overwrite the '$partition' partition with the selected image.\n\n" +
+                "This will overwrite the '$resolvedName' partition with the selected image.\n\n" +
                 "Make sure this image is built for your exact device model and chipset. " +
-                "Flashing the wrong image can make the device unbootable." + sizeWarning
+                "Flashing the wrong image can make the device unbootable." + sizeWarning + guidInfo
             )
             .setPositiveButton("Flash") { _, _ ->
                 runOperation(
-                    work = { FlashUtils.flashImage(path, partition) },
+                    work = { FlashUtils.flashImage(path, resolvedName) },
                     onResult = { result ->
                         when (result) {
                             is FlashUtils.FlashResult.Success ->
-                                Toast.makeText(this, "Flashed '$partition' successfully", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this, "Flashed '$resolvedName' successfully", Toast.LENGTH_LONG).show()
                             is FlashUtils.FlashResult.Error ->
                                 showError("Flash Failed", result.message)
                             else -> { /* unreachable — FlashResult only has these two subtypes */ }

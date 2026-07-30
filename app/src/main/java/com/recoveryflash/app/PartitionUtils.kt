@@ -82,6 +82,55 @@ object PartitionUtils {
 
     fun getPartitionPath(name: String): String = "$BY_NAME_PATH$name"
 
+    /** GPT identity for a partition, as parsed by the kernel itself (not by us re-reading raw bytes). */
+    data class PartitionIdentity(
+        val partName: String?,   // GPT partition entry name (PARTNAME) — should match the by-name symlink
+        val partUuid: String?,   // GPT unique partition GUID (PARTUUID) — unique per physical partition entry
+        val typeUuid: String?    // GPT partition type GUID (PARTTYPE) — identifies the partition's declared role
+    )
+
+    /**
+     * Reads the real GPT entry for a partition by resolving the by-name symlink to its
+     * backing block device node, then reading the kernel's own parsed GPT fields from
+     * that device's sysfs `uevent` file. This is the actual GPT table data (PARTNAME/
+     * PARTUUID/PARTTYPE) rather than the by-name symlink text, which is just a udev rule
+     * matching on PARTNAME — trusting the symlink name alone doesn't catch a stale link,
+     * a duplicate name across attached storage, or a mismatched entry.
+     */
+    fun getPartitionIdentity(name: String): PartitionIdentity? {
+        val command = """
+            REALPATH=${'$'}(readlink -f $BY_NAME_PATH$name)
+            DEVNAME=${'$'}(basename ${'$'}REALPATH)
+            cat /sys/class/block/${'$'}DEVNAME/uevent 2>/dev/null
+        """.trimIndent().replace("\n", "; ")
+
+        val (success, output) = RootUtils.runAsRoot(command)
+        if (!success || output.isBlank()) return null
+
+        val fields = output.lines()
+            .mapNotNull { line ->
+                val parts = line.trim().split("=", limit = 2)
+                if (parts.size == 2) parts[0] to parts[1] else null
+            }
+            .toMap()
+
+        return PartitionIdentity(
+            partName = fields["PARTNAME"],
+            partUuid = fields["PARTUUID"],
+            typeUuid = fields["PARTTYPE"]
+        )
+    }
+
+    /**
+     * Verifies the by-name symlink actually points to a GPT entry whose PARTNAME matches
+     * what we asked for. Returns true only when the kernel-reported name agrees — if this
+     * is false, don't proceed with a flash, since the symlink is not trustworthy on its own.
+     */
+    fun verifyPartitionIdentity(expectedName: String): Boolean {
+        val identity = getPartitionIdentity(expectedName) ?: return false
+        return identity.partName == expectedName
+    }
+
     /** Reads partition size in bytes via sysfs, for sanity-checking image size before flashing. */
     fun getPartitionSizeBytes(name: String): Long? {
         return try {
