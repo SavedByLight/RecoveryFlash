@@ -9,33 +9,20 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="← Back" />
+
         <TextView
-            android:id="@+id/appTitleText"
+            android:id="@+id/pageTitleText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="RecoveryFlash"
-            android:textSize="28sp"
+            android:text="Reboot &amp; Backup"
+            android:textSize="24sp"
             android:textStyle="bold"
-            android:gravity="center"
-            android:layout_marginBottom="2dp" />
-
-        <TextView
-            android:id="@+id/appCreditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Developed by SavedByLight"
-            android:textSize="13sp"
-            android:alpha="0.6"
-            android:gravity="center"
-            android:layout_marginBottom="2dp" />
-
-        <TextView
-            android:id="@+id/appVersionText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="v1.7"
-            android:textSize="12sp"
-            android:alpha="0.5"
             android:gravity="center"
             android:layout_marginBottom="20dp" />
 
@@ -48,64 +35,61 @@
             android:text="Checking root access..." />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Backup"
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Target partition"
+            android:text="Partition to back up"
+            android:layout_marginBottom="6dp" />
+
+        <Spinner
+            android:id="@+id/backupPartitionSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnBackup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:text="Backup Current Partition" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33000000"
+            android:layout_marginBottom="20dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Reboot"
             android:textStyle="bold"
             android:layout_marginBottom="6dp" />
 
         <Spinner
-            android:id="@+id/partitionSpinner"
+            android:id="@+id/rebootSpinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="8dp" />
 
         <Button
-            android:id="@+id/btnPickImage"
+            android:id="@+id/btnReboot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Select .img File" />
-
-        <TextView
-            android:id="@+id/selectedFileText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="No file selected"
-            android:layout_marginBottom="20dp" />
-
-        <Button
-            android:id="@+id/btnFlash"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/danger"
             android:layout_marginBottom="20dp"
-            android:text="Flash Image" />
+            android:text="Reboot" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:background="#33000000"
-            android:layout_marginBottom="20dp" />
-
-        <Button
-            android:id="@+id/btnOpenRebootBackup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Reboot &amp; Backup" />
-
-        <Button
-            android:id="@+id/btnDeviceInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Show Device Info" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#33000000"
-            android:layout_marginTop="20dp"
             android:layout_marginBottom="20dp" />
 
         <LinearLayout

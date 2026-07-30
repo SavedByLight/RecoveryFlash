@@ -66,51 +66,16 @@ class MainActivity : AppCompatActivity() {
             pickImageLauncher.launch("*/*")
         }
 
-        findViewById<Button>(R.id.btnBackupFirst).setOnClickListener {
-            requireRoot { confirmBackup() }
-        }
-
         findViewById<Button>(R.id.btnFlash).setOnClickListener {
             requireRoot { confirmFlash() }
         }
 
-        setupRebootSpinner()
+        findViewById<Button>(R.id.btnOpenRebootBackup).setOnClickListener {
+            startActivity(android.content.Intent(this, RebootBackupActivity::class.java))
+        }
 
         findViewById<Button>(R.id.btnDeviceInfo).setOnClickListener {
             showDeviceInfo()
-        }
-    }
-
-    private data class RebootOption(val label: String, val command: String, val isDownloadMode: Boolean = false)
-
-    private fun setupRebootSpinner() {
-        val isSamsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
-        val options = mutableListOf(
-            RebootOption("Recovery", "reboot recovery"),
-            RebootOption("Bootloader", "reboot bootloader")
-        )
-        // Download Mode is Samsung-specific (Odin mode) — leave it out entirely on other
-        // manufacturers rather than offering an option that won't do anything.
-        if (isSamsung) {
-            options.add(RebootOption("Download Mode (Odin)", "reboot download", isDownloadMode = true))
-        }
-
-        val rebootSpinner = findViewById<Spinner>(R.id.rebootSpinner)
-        rebootSpinner.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            options.map { it.label }
-        )
-
-        findViewById<Button>(R.id.btnReboot).setOnClickListener {
-            val selected = options.getOrNull(rebootSpinner.selectedItemPosition) ?: return@setOnClickListener
-            requireRoot {
-                if (selected.isDownloadMode) {
-                    confirmDownloadMode()
-                } else {
-                    confirmReboot("Reboot to ${selected.label}?", selected.command)
-                }
-            }
         }
     }
 
@@ -165,7 +130,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setActionButtonsEnabled(enabled: Boolean) {
-        findViewById<Button>(R.id.btnBackupFirst).isEnabled = enabled
         findViewById<Button>(R.id.btnFlash).isEnabled = enabled
     }
 
@@ -207,38 +171,6 @@ class MainActivity : AppCompatActivity() {
         val sizeMb = destFile.length() / 1024 / 1024
         selectedFileText.text = "Selected: ${destFile.length()} bytes (~${sizeMb} MB)"
         AppLog.log("Image selected: ${destFile.length()} bytes (~${sizeMb} MB)")
-    }
-
-    private fun confirmBackup() {
-        val partition = partitionSpinner.selectedItem as? String ?: return
-        if (!PartitionUtils.isFlashableTarget(partition)) {
-            AppLog.log("BLOCKED: '$partition' is not in the allowed partition list (${PartitionUtils.FLASHABLE_BASE_PARTITIONS.joinToString()})")
-            Toast.makeText(this, "This app can only back up recovery, boot, or vendor_boot", Toast.LENGTH_LONG).show()
-            return
-        }
-        val backupDir = File(getExternalFilesDir(null), "backups")
-        backupDir.mkdirs()
-        val backupFile = File(backupDir, "${partition}_backup_${System.currentTimeMillis()}.img")
-
-        AlertDialog.Builder(this)
-            .setTitle("Backup Partition")
-            .setMessage("Back up the current '$partition' partition to:\n${backupFile.absolutePath}")
-            .setPositiveButton("Backup") { _, _ ->
-                runOperation(
-                    work = { FlashUtils.backupPartition(partition, backupFile.absolutePath) },
-                    onResult = { result ->
-                        when (result) {
-                            is FlashUtils.FlashResult.Success ->
-                                Toast.makeText(this, "Backup saved: ${backupFile.name}", Toast.LENGTH_LONG).show()
-                            is FlashUtils.FlashResult.Error ->
-                                showError("Backup Failed", result.message)
-                            else -> { /* unreachable — FlashResult only has these two subtypes */ }
-                        }
-                    }
-                )
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     private fun confirmFlash() {
@@ -308,41 +240,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 )
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun confirmDownloadMode() {
-        AlertDialog.Builder(this)
-            .setTitle("Reboot to Download Mode?")
-            .setMessage(
-                "This reboots into Samsung Download Mode (Odin mode), used for flashing with Odin " +
-                "or Heimdall."
-            )
-            .setPositiveButton("Yes") { _, _ ->
-                AppLog.log("Running: reboot download")
-                val (success, output) = RootUtils.runAsRoot("reboot download")
-                if (!success) {
-                    AppLog.log("ERROR: reboot download failed — $output")
-                    showError("Reboot Failed", output)
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun confirmReboot(message: String, command: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Confirm")
-            .setMessage(message)
-            .setPositiveButton("Yes") { _, _ ->
-                AppLog.log("Running: $command")
-                val (success, output) = RootUtils.runAsRoot(command)
-                if (!success) {
-                    AppLog.log("ERROR: $command failed — $output")
-                    showError("Reboot Failed", output)
-                }
             }
             .setNegativeButton("Cancel", null)
             .show()
