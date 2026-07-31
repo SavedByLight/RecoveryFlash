@@ -34,6 +34,9 @@ generate it, or run `gradle wrapper` if you have Gradle installed locally.)
   overwriting it
 - Reboot to recovery / bootloader shortcuts
 - Basic device info screen (model, board, A/B slot info)
+- Live progress log (root checks, partition discovery, dd output, errors),
+  viewable in a popup window from either screen via the "View Log" button,
+  with Copy and Clear actions
 
 ## Safety notes — read before using
 
@@ -60,11 +63,18 @@ RecoveryFlash/
 │   └── src/main/
 │       ├── AndroidManifest.xml
 │       ├── java/com/recoveryflash/app/
-│       │   ├── MainActivity.kt      — UI + flow control
-│       │   ├── RootUtils.kt         — su/root command execution
-│       │   ├── PartitionUtils.kt    — partition discovery & A/B slot resolution
-│       │   └── FlashUtils.kt        — dd-based flash/backup logic
+│       │   ├── MainActivity.kt         — flash screen: UI + flow control
+│       │   ├── RebootBackupActivity.kt — backup/reboot screen
+│       │   ├── LogDialog.kt            — popup window that renders the shared log
+│       │   ├── AppLog.kt               — in-memory, timestamped progress log
+│       │   ├── RootUtils.kt            — su/root command execution
+│       │   ├── PartitionUtils.kt       — partition discovery & A/B slot resolution
+│       │   └── FlashUtils.kt           — dd-based flash/backup logic
 │       └── res/
+│           └── layout/
+│               ├── activity_main.xml
+│               ├── activity_reboot_backup.xml
+│               └── dialog_log.xml      — layout for the popup log window
 ├── build.gradle
 └── settings.gradle
 ```
