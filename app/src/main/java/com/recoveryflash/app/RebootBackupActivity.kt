@@ -1,11 +1,7 @@
 package com.recoveryflash.app
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.os.Build
 import android.os.Bundle
-import android.text.method.ScrollingMovementMethod
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
@@ -19,7 +15,6 @@ class RebootBackupActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
     private lateinit var backupPartitionSpinner: Spinner
-    private lateinit var logText: TextView
 
     private var rooted: Boolean = false
     private var operationInProgress: Boolean = false
@@ -30,21 +25,13 @@ class RebootBackupActivity : AppCompatActivity() {
 
         statusText = findViewById(R.id.statusText)
         backupPartitionSpinner = findViewById(R.id.backupPartitionSpinner)
-        logText = findViewById(R.id.logText)
-        logText.movementMethod = ScrollingMovementMethod()
 
         findViewById<Button>(R.id.btnBack).setOnClickListener {
             finish()
         }
 
-        findViewById<Button>(R.id.btnCopyLog).setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("RecoveryFlash log", AppLog.currentText()))
-            Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.btnClearLog).setOnClickListener {
-            AppLog.clear()
+        findViewById<Button>(R.id.btnViewLog).setOnClickListener {
+            LogDialog.show(this)
         }
 
         rooted = RootUtils.isRooted()
@@ -56,23 +43,6 @@ class RebootBackupActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnBackup).setOnClickListener {
             requireRoot { confirmBackup() }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        AppLog.setListener { text ->
-            logText.text = text.ifEmpty { "No activity yet." }
-            val layout = logText.layout
-            if (layout != null) {
-                val scrollAmount = layout.getLineTop(logText.lineCount) - logText.height
-                logText.scrollTo(0, if (scrollAmount > 0) scrollAmount else 0)
-            }
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        AppLog.setListener(null)
     }
 
     private fun requireRoot(action: () -> Unit) {

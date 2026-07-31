@@ -1,13 +1,9 @@
 package com.recoveryflash.app
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.text.method.ScrollingMovementMethod
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
@@ -24,7 +20,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var selectedFileText: TextView
     private lateinit var partitionSpinner: Spinner
-    private lateinit var logText: TextView
 
     private var selectedImagePath: String? = null
     private var rooted: Boolean = false
@@ -43,17 +38,9 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         selectedFileText = findViewById(R.id.selectedFileText)
         partitionSpinner = findViewById(R.id.partitionSpinner)
-        logText = findViewById(R.id.logText)
-        logText.movementMethod = ScrollingMovementMethod()
 
-        findViewById<Button>(R.id.btnCopyLog).setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("RecoveryFlash log", AppLog.currentText()))
-            Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.btnClearLog).setOnClickListener {
-            AppLog.clear()
+        findViewById<Button>(R.id.btnViewLog).setOnClickListener {
+            LogDialog.show(this)
         }
 
         rooted = RootUtils.isRooted()
@@ -77,24 +64,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnDeviceInfo).setOnClickListener {
             showDeviceInfo()
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        AppLog.setListener { text ->
-            logText.text = text.ifEmpty { "No activity yet." }
-            // Auto-scroll to the bottom so the latest line is always visible.
-            val layout = logText.layout
-            if (layout != null) {
-                val scrollAmount = layout.getLineTop(logText.lineCount) - logText.height
-                logText.scrollTo(0, if (scrollAmount > 0) scrollAmount else 0)
-            }
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        AppLog.setListener(null)
     }
 
     private fun requireRoot(action: () -> Unit) {
