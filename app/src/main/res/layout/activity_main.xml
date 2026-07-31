@@ -33,7 +33,7 @@
             android:id="@+id/appVersionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="v1.7"
+            android:text="v1.8"
             android:textSize="12sp"
             android:alpha="0.5"
             android:gravity="center"
